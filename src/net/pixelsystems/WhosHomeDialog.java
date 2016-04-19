@@ -43,6 +43,10 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	private static final String CLOSE_BUTTON="CLOSE_BUTTON";
 	private static final String START_BUTTON="START_BUTTON";
 	private static final String SERVER_CONNECT_BUTTON="SERVER_CONNECT_BUTTON";
+	private static final String NAME_COLUMN="Name";
+	private static final String ENABLED_COLUMN="Enabled";
+	private static final String IS_MOTION_DETECT="Is Motion Detecting";
+	private static final String IS_INCLUDED="Include?";
 
 	private JLabel appStatusLabel = new JLabel("Status:");
 	private JLabel serverStatusLabel = new JLabel("Status:");
@@ -68,7 +72,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	
 	
 	class MyTableModel extends AbstractTableModel{
-		private String[]columnNames=new String[]{"Name","Enabled","Has Motion Detection","Include?"};
+		private String[]columnNames=new String[]{NAME_COLUMN,ENABLED_COLUMN,IS_MOTION_DETECT,IS_INCLUDED};
 
 		List<CameraData>cams = new ArrayList<CameraData>();
 		Map<CameraData,Boolean>includeCam=new HashMap<CameraData,Boolean>();
@@ -307,7 +311,8 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 				handleStatusChange();
 			}else if(sourceComp.getName().equals(CLOSE_BUTTON)){
 				appStatus = StateUtil.APP_STATUS.SHUTDOWN;
-				handleStatusChange();
+				// TODO: handle thread shutdowns
+				//handleStatusChange();
 				dispose();				
 			}else if(sourceComp.getName().equals(SERVER_CONNECT_BUTTON)){				
 				connector = new ServerConnector(ncsServerIP.getText(), ncsServerPort.getText(),this);
@@ -419,12 +424,22 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	@Override
 	public void setClientFeedback(PingClass pc, String feedbackTxt) {
 		setClientStatus(feedbackTxt);
-		for(PingClass client:clients){
-			if(client.getState()!=CLIENT_STATE.EXISTING){
+		if(pc!=null){
+			List<String>enabledCams=new ArrayList<String>();		
+			if(pc.getState()!=CLIENT_STATE.EXISTING){
 				// enable security
+				for(int i=0;i<camTableModel.getRowCount();i++){
+					int includeIdx = camTable.getColumn(IS_INCLUDED).getModelIndex();
+					Boolean applySecurity = (Boolean)camTableModel.getValueAt(i, includeIdx);
+					if(applySecurity){
+						int nameIdx = camTable.getColumn(NAME_COLUMN).getModelIndex();
+						String camera = (String)camTableModel.getValueAt(i, nameIdx);
+						enabledCams.add(camera);
+					}					
+				}
+				connector.monitor(enabledCams);
 				return;
 			}
 		}
-		
 	}	
 }

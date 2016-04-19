@@ -162,4 +162,36 @@ public class ServerConnector{
 		};
 		serverThread.start();
 	}
+	public void monitor(List<String> enabledCams) {		
+		try{
+			for(int cc=0;cc<cachedCams.size();cc++){
+				String cachedCamName = cachedCams.get(cc).getName();
+				if(enabledCams.contains(cachedCamName)){
+					int c=enabledCams.indexOf(cachedCamName);
+					if(cachedCams.get(cc).getName().equals(enabledCams.get(c))){
+						URL hostURL = new URL(baseString+"GetCamStatus?authToken="+connectedServer.SessionToken+"&sourceIdx="+cc);						
+						JsonReader reader = new JsonReader(new InputStreamReader(hostURL.openStream(),"UTF-8"));
+						Gson getCamStatus = new Gson();
+						CameraStatus camStatus = getCamStatus.fromJson(reader, CameraStatus.class);
+						reader.close();
+						//System.out.println("Do we need to turn "+cachedCamName+" *ON* for motion detection: "+!camStatus.IsMotionDetector);
+						if(!camStatus.IsMotionDetector){
+							//StartStopMotionDetector
+							
+							hostURL = new URL(baseString+"StartStopMotionDetector?authToken="+connectedServer.SessionToken+"&sourceId="+cc+"&enabled=true");						
+							reader = new JsonReader(new InputStreamReader(hostURL.openStream(),"UTF-8"));
+							Gson StartStopMotionDetector = new Gson();
+							Boolean result = StartStopMotionDetector.fromJson(reader, Boolean.class);
+							reader.close();
+							feedback.feedbackEvent(new ServerFeedbackEvent("Enabled "+cachedCamName+" for motion detection", ServerEventType.MONITOR));
+						}
+						
+					}
+				}
+			}
+		}catch(IOException ioex){
+
+		}
+
+	}
 }

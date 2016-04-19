@@ -52,6 +52,9 @@ public class FeedbackWorker extends SwingWorker<Boolean, Void> {
 			case ERROR:
 				handler.setServerStatus(evt.getFeedback());
 				break;
+			case MONITOR:
+				handler.setServerStatus(evt.getFeedback());
+				break;
 			
 		}
 		
