@@ -111,30 +111,27 @@ public class ServerConnector{
 	}
 	/**
 	 * Spawns a verify thread, sends feedback depending on result
+	 * TODO:  needs to be called regularly, perhaps per-ping, to ensure connection to server stays valid
 	 */
-	public void verify(){
-		Thread serverThread = new Thread(){
-			@Override
-			public void run(){
-					if(!connectionEstablished()){
-						feedback.feedbackEvent(loginError("Connection to the server has not yet been created..."));
-					}
-					if(connectedServer.SessionToken.length()<5){
-						feedback.feedbackEvent(loginError("Connection to the server is using an invalid token..."));
-					}
-					Boolean verify = false;
-					try{
-						URL hostURL = new URL(baseString+"VerifyToken?token="+connectedServer.SessionToken);
-						JsonReader reader = new JsonReader(new InputStreamReader(hostURL.openStream(),"UTF-8"));
-						Gson login = new Gson();
-						verify = (Boolean)login.fromJson(reader, Boolean.class);
-						reader.close();
-					} catch (IOException e) {
-						feedback.feedbackEvent(loginError("Could not verify connection..."));
-					}
-			}
-		};
-		serverThread.start();
+	public Boolean verify(){
+		if(!connectionEstablished()){
+			feedback.feedbackEvent(loginError("Connection to the server has not yet been created..."));
+		}
+		if(connectedServer.SessionToken.length()<5){
+			feedback.feedbackEvent(loginError("Connection to the server is using an invalid token..."));
+		}
+		Boolean verify = false;
+		try{
+			URL hostURL = new URL(baseString+"VerifyToken?token="+connectedServer.SessionToken);
+			JsonReader reader = new JsonReader(new InputStreamReader(hostURL.openStream(),"UTF-8"));
+			Gson login = new Gson();
+			verify = (Boolean)login.fromJson(reader, Boolean.class);
+			reader.close();
+			return verify;
+		} catch (IOException e) {
+			feedback.feedbackEvent(loginError("Could not verify connection..."));
+		}
+		return false;
 	}
 	
 	public void getCameras(){
@@ -142,6 +139,9 @@ public class ServerConnector{
 			@Override
 			public void run(){
 				try{
+					if(!verify()){
+						return;
+					}
 					URL hostURL = new URL(baseString+"GetCameras?authToken="+connectedServer.SessionToken);
 					JsonReader reader = new JsonReader(new InputStreamReader(hostURL.openStream(),"UTF-8"));
 					Gson login = new Gson();

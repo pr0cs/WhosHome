@@ -46,9 +46,6 @@ public class FeedbackWorker extends SwingWorker<Boolean, Void> {
 			case LOGIN_FAILED:
 				handler.setServerStatus(evt.getFeedback());
 				break;
-			case VERIFY:
-				// do nothing
-				break;
 			case CAMERA_INFO:
 				handler.setCameraInfo(evt.getRetrievedCams());
 				break;

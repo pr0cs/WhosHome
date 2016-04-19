@@ -6,7 +6,7 @@ import net.pixelsystems.server.CameraData;
 import net.pixelsystems.thread.ThreadFeedback.FeedbackType;
 
 public class ServerFeedbackEvent extends FeedbackEvent {
-	public enum ServerEventType{LOGIN_FAILED,LOGIN_OK,ERROR,CAMERA_INFO,VERIFY};
+	public enum ServerEventType{LOGIN_FAILED,LOGIN_OK,ERROR,CAMERA_INFO};
 	private String event;
 	private ServerEventType type;
 	private List<CameraData> retrievedCams= null;
