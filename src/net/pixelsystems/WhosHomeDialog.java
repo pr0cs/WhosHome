@@ -34,7 +34,9 @@ import net.pixelsystems.server.CameraData;
 import net.pixelsystems.server.ServerConnectionException;
 import net.pixelsystems.server.ServerConnector;
 import net.pixelsystems.thread.FeedbackEvent;
+import net.pixelsystems.thread.FeedbackWorker;
 import net.pixelsystems.thread.PingClass;
+import net.pixelsystems.thread.ServerFeedbackEvent;
 import net.pixelsystems.thread.ThreadFeedback;
 
 public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeThreadHandler,ThreadFeedback {
@@ -307,24 +309,10 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 				appStatus = StateUtil.APP_STATUS.SHUTDOWN;
 				handleStatusChange();
 				dispose();				
-			}else if(sourceComp.getName().equals(SERVER_CONNECT_BUTTON)){
-				
-					connector = new ServerConnector(ncsServerIP.getText(), ncsServerPort.getText(),this);
-					String pass = new String(ncsServerPassword.getPassword());
-					try {
-						connector.login(ncsServerUserName.getText(), pass);
-						List<CameraData>cams = connector.getCameras();
-						if(cams!=null){
-							for(CameraData cam:cams){
-								camTableModel.addCam(cam);
-							}
-							setStatus(null,"Connected...",null);
-						}else{
-							setStatus(null,"Could not find any cams on server",null);
-						}
-					} catch (ServerConnectionException e1) {
-						setStatus(null,"{Exception}:"+e1.getMessage(),null);
-					}
+			}else if(sourceComp.getName().equals(SERVER_CONNECT_BUTTON)){				
+				connector = new ServerConnector(ncsServerIP.getText(), ncsServerPort.getText(),this);
+				String pass = new String(ncsServerPassword.getPassword());
+				connector.login(ncsServerUserName.getText(), pass);						
 			}
 			updateUIElements();
 		}		
@@ -398,29 +386,45 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	}
 	@Override
 	public boolean isAppShuttingDown() {
-
 		return false;
 	}
 	
+	
+	
 	@Override
 	public void feedbackEvent(FeedbackEvent event) {
-		switch(event.getType()){
-			case CLIENT:
-				setClientStatus(event.getFeedback());
-				for(PingClass client:clients){
-					if(client.getState()!=CLIENT_STATE.EXISTING){
-						// enable security
-						return;
-					}
-				}
-				// disable security
-				break;
-			case SERVER:
-				setServerStatus(event.getFeedback());
-				break;
-			case APP:
-				setAppStatus(event.getFeedback());
-				break;
+		FeedbackWorker worker = new FeedbackWorker(event, this);
+		worker.run();
+	}
+	
+	@Override
+	public void setCameraInfo(List<CameraData> data) {
+		if(data!=null){
+			for(CameraData cam:data){
+				camTableModel.addCam(cam);
+			}
+			setStatus(null,"Connected...",null);
+		}else{
+			setStatus(null,"Could not find any cams on server",null);
 		}
+		
+	}
+	
+	@Override
+	public void loginOK(ServerFeedbackEvent evt) {
+		setServerStatus(evt.getFeedback());
+		connector.getCameras();
+	}
+	
+	@Override
+	public void setClientFeedback(PingClass pc, String feedbackTxt) {
+		setClientStatus(feedbackTxt);
+		for(PingClass client:clients){
+			if(client.getState()!=CLIENT_STATE.EXISTING){
+				// enable security
+				return;
+			}
+		}
+		
 	}	
 }
