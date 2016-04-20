@@ -10,55 +10,75 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
+import javax.swing.ListSelectionModel;
 import javax.swing.border.TitledBorder;
-import javax.swing.table.AbstractTableModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import net.pixelsystems.StateUtil.CLIENT_STATE;
+import net.pixelsystems.client.Client;
 import net.pixelsystems.server.CameraData;
-import net.pixelsystems.server.ServerConnectionException;
 import net.pixelsystems.server.ServerConnector;
 import net.pixelsystems.thread.FeedbackEvent;
 import net.pixelsystems.thread.FeedbackWorker;
 import net.pixelsystems.thread.PingClass;
 import net.pixelsystems.thread.ServerFeedbackEvent;
 import net.pixelsystems.thread.ThreadFeedback;
+import net.pixelsystems.ui.AddClientDialog;
+import net.pixelsystems.ui.CameraListTableModel;
+import net.pixelsystems.ui.ClientListTableModel;
 
-public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeThreadHandler,ThreadFeedback {
+@SuppressWarnings("serial")
+public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeThreadHandler,ThreadFeedback, ListSelectionListener {
 	private static final String CLOSE_BUTTON="CLOSE_BUTTON";
 	private static final String START_BUTTON="START_BUTTON";
+	private static final String ADD_CLIENT_BUTTON="ADD_CLIENT_BUTTON";
+	private static final String REMOVE_CLIENT_BUTTON="REMOVE_CLIENT_BUTTON";
 	private static final String SERVER_CONNECT_BUTTON="SERVER_CONNECT_BUTTON";
-	private static final String NAME_COLUMN="Name";
-	private static final String ENABLED_COLUMN="Enabled";
-	private static final String IS_MOTION_DETECT="Is Motion Detecting";
-	private static final String IS_INCLUDED="Include?";
+	public static final Icon ADD_CLIENT_ICON = new ImageIcon("resources/add-client.png");
+	public static final Icon REMOVE_CLIENT_ICON = new ImageIcon("resources/remove-client.png");
+	private static final String SESSION_FILE="WhosHome.json";
 
+	private JButton addClientButton = new JButton(ADD_CLIENT_ICON);
+	private JButton removeClientButton = new JButton(REMOVE_CLIENT_ICON);
 	private JLabel appStatusLabel = new JLabel("Status:");
 	private JLabel serverStatusLabel = new JLabel("Status:");
 	private JLabel hostsStatusLabel = new JLabel("Status:");
-	private JTextField willCell = new JTextField(15);
-	private JTextField lauraCell = new JTextField(15);
-	private MyTableModel camTableModel = new MyTableModel();
+	private CameraListTableModel camTableModel = new CameraListTableModel();
+	private ClientListTableModel clientTableModel = new ClientListTableModel();
 	private JTable camTable = null;
+	private JTable clientTable = null;
 	private JTextField timeBeforeCheck = new JTextField(3);
-	private StateUtil.APP_STATUS appStatus=StateUtil.APP_STATUS.DISABLED;
-	private StateUtil.CLIENT_STATE hostStatus = StateUtil.CLIENT_STATE.MISSING;
-	private StateUtil.SERVER_STATUS serverStatus = StateUtil.SERVER_STATUS.DISCONNECTED;	
+	private StateUtil.APP_STATUS appStatus=StateUtil.APP_STATUS.DISABLED;	
 	private Timer tickerTimer=new Timer();
 	private int connectionTimerLength;
 	private ServerConnector connector=null;
@@ -69,90 +89,23 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	private JButton ncsServerConnect = new JButton("Connect...");
 	List<PingClass>clients = new ArrayList<PingClass>();
 	private TickClass ticker;
-	
-	
-	class MyTableModel extends AbstractTableModel{
-		private String[]columnNames=new String[]{NAME_COLUMN,ENABLED_COLUMN,IS_MOTION_DETECT,IS_INCLUDED};
 
-		List<CameraData>cams = new ArrayList<CameraData>();
-		Map<CameraData,Boolean>includeCam=new HashMap<CameraData,Boolean>();
-		
-		public void addCam(CameraData cam){
-			cams.add(cam);
-			includeCam.put(cam, true);
-			fireTableDataChanged();
-			//fireTableCellUpdated(cams.size()-1, 0);
-		}
-		
-		@Override
-		public void setValueAt(Object value,int row, int col){
-			if(col==3){
-				CameraData cam = cams.get(row);
-				includeCam.put(cam, (Boolean)value);
-				fireTableCellUpdated(row,col);
-			}
-		}
-		@Override
-		public int getRowCount() {
-			return cams.size();
-		}
 
-		@Override
-		public String getColumnName(int col){
-			return columnNames[col];
-		}
-		@Override
-		public Class getColumnClass(int c){
-			if(c==0){
-				return String.class;
-			}
-			return Boolean.class;
-			
-		}
-		@Override
-		public int getColumnCount() {
-			return columnNames.length;
-		}
 
-		@Override
-		public Object getValueAt(int rowIndex, int columnIndex) {
-			CameraData cam = cams.get(rowIndex);
-			switch(columnIndex){
-			case 0:
-				return cam.getName();
-			case 1:
-				return cam.isEnabled();
-			case 2:
-				return cam.isMotionDetector();
-			case 3:
-				return includeCam.get(cam);
-			}
-			return "UNKNOWN";
-		}
-		
-		@Override
-		public boolean isCellEditable(int row,int col){
-			if(col==3){
-				return true;
-			}
-			return false;
-		}
-		
-	}
-	
+
 	public WhosHomeDialog(){
 		super((Frame)null,true);
 		setTitle("WhosHome v1.0");
 		Container content = getContentPane();
 		content.setLayout(new BorderLayout());
-		
+
 		JPanel buttonPanel = getButtonPanel();
 		JPanel mainPanel = getMainPanel();
 		JPanel topPanel = getTopPanel();
 		content.add(topPanel,BorderLayout.NORTH);
 		content.add(mainPanel,BorderLayout.CENTER);
 		content.add(buttonPanel,BorderLayout.SOUTH);
-		setSize(500, 620);
+		setSize(500, 770);
 		setStatus("Waiting...","Waiting...","Waiting...");
 	}
 	private JPanel getButtonPanel(){
@@ -167,41 +120,71 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 		startButton.addActionListener(this);
 		return buttonPanel;
 	}
-	
+
 	private JPanel getMainPanel(){
 		JPanel mainPanel = new JPanel();
 		mainPanel.setLayout(new GridBagLayout());		
-		GridBagConstraints gbcmonitors = new GridBagConstraints();
-		
-		JPanel monitorsPanel = new JPanel(new GridBagLayout());
-		monitorsPanel.setBorder(new TitledBorder("Monitors:"));
-		
-		
-		gbcmonitors.gridx=0;
-		gbcmonitors.gridy=0;
-		gbcmonitors.insets=new Insets(3,3,3,3);
-		gbcmonitors.anchor=GridBagConstraints.LINE_START;
+		GridBagConstraints gbcClients = new GridBagConstraints();
+
+		JPanel clientsPanel = new JPanel(new GridBagLayout());
+		clientsPanel.setBorder(new TitledBorder("Client Functionality:"));
+
+
+		gbcClients.gridx=0;
+		gbcClients.gridy=0;		
+		gbcClients.gridwidth=0;
+		gbcClients.anchor=GridBagConstraints.LINE_START;
 		// row 1
-		monitorsPanel.add(new JLabel("Will Cell IP:"),gbcmonitors);
-		gbcmonitors.gridx=1;
-		
-		monitorsPanel.add(willCell,gbcmonitors);
-		
-		// row 2
-		gbcmonitors.gridy=1;
-		gbcmonitors.gridx=0;
-		monitorsPanel.add(new JLabel("Laura Cell IP:"),gbcmonitors);
-		gbcmonitors.gridx=1;
-		monitorsPanel.add(lauraCell,gbcmonitors);
-		
+		JPanel clientPanel = new JPanel();
+		clientPanel.setBorder(new TitledBorder("Defined Clients:"));
+
+
+		clientTable = new JTable(clientTableModel);		
+		clientTable.setPreferredScrollableViewportSize(new Dimension(400,100));
+		clientTable.setFillsViewportHeight(true);
+		JScrollPane clientScrollPane = new JScrollPane(clientTable);
+		clientTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		clientTable.getSelectionModel().addListSelectionListener(this);
+
+		//clientTable.getColumnModel().getColumn(2).setPreferredWidth(200);
+		clientTable.updateUI();
+		clientPanel.add(clientScrollPane);
+
+		JPanel buttonPanel = new JPanel();
+		buttonPanel.add(addClientButton);
+		addClientButton.addActionListener(this);
+		addClientButton.setName(ADD_CLIENT_BUTTON);
+		buttonPanel.add(removeClientButton);
+		removeClientButton.addActionListener(this);
+		removeClientButton.setName(REMOVE_CLIENT_BUTTON);
+		addClientButton.setPreferredSize(new Dimension(ADD_CLIENT_ICON.getIconWidth()+6, ADD_CLIENT_ICON.getIconHeight()+6));
+		addClientButton.setSize(ADD_CLIENT_ICON.getIconWidth()+6, ADD_CLIENT_ICON.getIconHeight()+6);
+		addClientButton.setContentAreaFilled(false);
+		addClientButton.setToolTipText("Click to add a new client to monitor");
+
+		removeClientButton.setPreferredSize(new Dimension(REMOVE_CLIENT_ICON.getIconWidth()+6, REMOVE_CLIENT_ICON.getIconHeight()+6));
+		removeClientButton.setSize(REMOVE_CLIENT_ICON.getIconWidth()+6, REMOVE_CLIENT_ICON.getIconHeight()+6);
+		removeClientButton.setContentAreaFilled(false);
+		removeClientButton.setToolTipText("Click to remove the currently selected client");
+		removeClientButton.setEnabled(false);
+		clientsPanel.add(buttonPanel,gbcClients);
+
+
+		gbcClients.gridx=0;
+		gbcClients.gridy=1;		
+		gbcClients.gridwidth=3;
+		gbcClients.insets=new Insets(3,3,3,3);
+		clientsPanel.add(clientPanel,gbcClients);
+
 		// row 3
-		gbcmonitors.gridy=2;
-		gbcmonitors.gridx=0;
-		monitorsPanel.add(new JLabel("Time before check (sec):"),gbcmonitors);
-		gbcmonitors.gridx=1;
+		gbcClients.gridwidth=1;
+		gbcClients.gridy=2;
+		gbcClients.gridx=0;
+		clientsPanel.add(new JLabel("Time before check (sec):"),gbcClients);
+		gbcClients.gridx=1;
 		timeBeforeCheck.setText("5");
-		monitorsPanel.add(timeBeforeCheck,gbcmonitors);
-		
+		clientsPanel.add(timeBeforeCheck,gbcClients);
+
 		JPanel serverPanel = new JPanel(new GridBagLayout());
 		serverPanel.setBorder(new TitledBorder("Server Connection:"));
 		GridBagConstraints gbcncs = new GridBagConstraints();
@@ -244,9 +227,14 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 		GridBagConstraints gbcoverall = new GridBagConstraints();
 		gbcoverall.fill=GridBagConstraints.BOTH;
 		gbcoverall.insets=new Insets(6,6,6,6);
-		mainPanel.add(monitorsPanel,gbcoverall);
+		mainPanel.add(clientsPanel,gbcoverall);
 		gbcoverall.gridy=1;
 		mainPanel.add(serverPanel,gbcoverall);
+		try{
+			restoreState();
+		}catch(IOException ioex){
+			setAppStatus(ioex.getMessage());
+		}
 		return mainPanel;
 	}
 
@@ -268,15 +256,15 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 		camTable = new JTable(camTableModel);
 		camTable.setPreferredScrollableViewportSize(new Dimension(400,100));
 		camTable.setFillsViewportHeight(true);
-		JScrollPane scrollPane = new JScrollPane(camTable);
+		JScrollPane camScrollPane = new JScrollPane(camTable);
 		camTable.getColumnModel().getColumn(2).setPreferredWidth(200);
 		//camTableModel.addCam(new CameraData("Test",true,true));
 		camTable.updateUI();
-		camPanel.add(scrollPane, gbc);
+		camPanel.add(camScrollPane, gbc);
 		topPanel.add(camPanel,gbc);
 		return topPanel;
 	}
-	
+
 	private void setStatus(String appStatusText,String serverStatusTest, String hostStatusTest){
 		if(appStatusText!=null){
 			appStatusLabel.setText("[App Status]:"+appStatusText);
@@ -288,7 +276,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 			hostsStatusLabel.setText("[Client Status]:"+hostStatusTest);
 		}
 	}
-	
+
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		Object source = e.getSource();
@@ -313,27 +301,42 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 				appStatus = StateUtil.APP_STATUS.SHUTDOWN;
 				// TODO: handle thread shutdowns
 				//handleStatusChange();
+				try{
+					saveState();
+				}catch(IOException ioex){
+					JOptionPane.showMessageDialog(this, "Error saving session:\n"+ioex.getMessage());
+				}
 				dispose();				
 			}else if(sourceComp.getName().equals(SERVER_CONNECT_BUTTON)){				
 				connector = new ServerConnector(ncsServerIP.getText(), ncsServerPort.getText(),this);
 				String pass = new String(ncsServerPassword.getPassword());
 				connector.login(ncsServerUserName.getText(), pass);						
+			}else if(sourceComp.equals(addClientButton)){
+				AddClientDialog dlg = new AddClientDialog(this, null);
+				dlg.setVisible(true);
+				Client result = dlg.getClient();
+				if(result!=null){
+					clientTableModel.addClient(result);
+				}
+			}else if(sourceComp.equals(removeClientButton)){
+				int row =clientTable.getSelectedRow();
+				clientTableModel.removeClientIndex(row);
 			}
 			updateUIElements();
 		}		
 	}
-	
+
 	private void updateUIElements(){
-			willCell.setEnabled(isAppDisabled());
-			lauraCell.setEnabled(isAppDisabled());
-			timeBeforeCheck.setEnabled(isAppDisabled());
+		timeBeforeCheck.setEnabled(isAppDisabled());
 	}
-	
+
 	private void handleStatusChange(){
 		if(!isAppDisabled()){
 			int timeInSeconds = Integer.parseInt(timeBeforeCheck.getText());
-			
-			clients.add(new PingClass(this,willCell.getText()));
+			List<Client>tblClients =clientTableModel.getClients();
+			for(Client client:tblClients){
+				clients.add(new PingClass(this,client));
+			}
 			//hosts.add(lauraConnection);// TODO: add second field
 			tickerTimer.purge();
 			ticker = new TickClass();
@@ -351,7 +354,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 			clients.clear();
 		}
 	}
-	
+
 	class TickClass extends TimerTask{
 		public void run(){
 			if(isAppDisabled()){
@@ -367,7 +370,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 				time = connectionTimerLength-1;
 			}
 			timeBeforeCheck.setText(Integer.toString(time));
-			
+
 		}
 	}
 
@@ -378,31 +381,31 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 	@Override
 	public void setAppStatus(String appStatusText) {
 		setStatus(appStatusText, null, null);
-		
+
 	}
 	@Override
 	public void setServerStatus(String serverStatusText) {
 		setStatus(null, serverStatusText, null);
-		
+
 	}
 	@Override
 	public void setClientStatus(String hostStatusText) {
 		setStatus(null, null, hostStatusText);
-		
+
 	}
 	@Override
 	public boolean isAppShuttingDown() {
 		return false;
 	}
-	
-	
-	
+
+
+
 	@Override
 	public void feedbackEvent(FeedbackEvent event) {
 		FeedbackWorker worker = new FeedbackWorker(event, this);
 		worker.run();
 	}
-	
+
 	@Override
 	public void setCameraInfo(List<CameraData> data) {
 		if(data!=null){
@@ -413,34 +416,88 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 		}else{
 			setStatus(null,"Could not find any cams on server",null);
 		}
-		
+
 	}
-	
+
 	@Override
 	public void loginOK(ServerFeedbackEvent evt) {
 		setServerStatus(evt.getFeedback());
 		connector.getCameras();
 	}
-	
+
 	@Override
 	public void setClientFeedback(PingClass pc, String feedbackTxt) {
 		setClientStatus(feedbackTxt);
+		clientTableModel.fireTableDataChanged();
 		if(pc!=null){
 			List<String>enabledCams=new ArrayList<String>();		
 			if(pc.getState()!=CLIENT_STATE.EXISTING){
 				// enable security
 				for(int i=0;i<camTableModel.getRowCount();i++){
-					int includeIdx = camTable.getColumn(IS_INCLUDED).getModelIndex();
+					int includeIdx = camTableModel.getIncludedColIndex(camTable);
 					Boolean applySecurity = (Boolean)camTableModel.getValueAt(i, includeIdx);
 					if(applySecurity){
-						int nameIdx = camTable.getColumn(NAME_COLUMN).getModelIndex();
+						int nameIdx = camTableModel.getNameColIndex(camTable);
 						String camera = (String)camTableModel.getValueAt(i, nameIdx);
 						enabledCams.add(camera);
 					}					
 				}
-				connector.monitor(enabledCams);
+				Boolean result = connector.monitor(enabledCams);
+				if(result){
+					System.out.println("need to update table");
+				}
 				return;
 			}
 		}
-	}	
+	}
+	@Override
+	public void valueChanged(ListSelectionEvent e) {
+		removeClientButton.setEnabled(false);
+		if(clientTable.getSelectedRow()!=-1){
+			removeClientButton.setEnabled(true);
+		}
+
+	}
+
+	public void saveState()throws IOException{
+		FileOutputStream fout = new FileOutputStream(new File(SESSION_FILE));
+		JsonWriter writer = new JsonWriter(new OutputStreamWriter(fout,"UTF-8"));
+		writer.beginObject();
+		clientTableModel.saveState(writer);
+		writer.name("timeBeforeCheck").value(timeBeforeCheck.getText());
+		writer.name("ncsServerIP").value(ncsServerIP.getText());
+		writer.name("ncsServerPassword").value(new String(ncsServerPassword.getPassword()));
+		writer.name("ncsServerPort").value(ncsServerPort.getText());
+		writer.name("ncsServerUserName").value(ncsServerUserName.getText());
+		writer.endObject();
+		writer.close();
+	}
+
+	public void restoreState()throws IOException{
+		File state = new File(SESSION_FILE);
+		if(state.exists()){
+			FileInputStream fin = new FileInputStream(state);
+			JsonReader reader = null;
+			reader = new JsonReader(new InputStreamReader(fin,"UTF-8"));
+			reader.beginObject();
+			clientTableModel.restoreState(reader);
+			while (reader.hasNext()) {
+				String name = reader.nextName();
+				if(name.equals("timeBeforeCheck")){
+					timeBeforeCheck.setText(reader.nextString());
+				}else if(name.equals("ncsServerIP")){
+					ncsServerIP.setText(reader.nextString());
+				}else if(name.equals("ncsServerPassword")){
+					ncsServerPassword.setText(reader.nextString());
+				}else if(name.equals("ncsServerPort")){
+					ncsServerPort.setText(reader.nextString());
+				}else if(name.equals("ncsServerUserName")){
+					ncsServerUserName.setText(reader.nextString());
+				}
+			}
+			reader.endObject();
+			reader.close();
+		}
+
+	}
 }
