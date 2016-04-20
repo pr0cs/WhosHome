@@ -80,6 +80,7 @@ public class CameraListTableModel extends AbstractTableModel {
 		}
 		return "UNKNOWN";
 	}
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public Class getColumnClass(int c){
 		if(c==0){

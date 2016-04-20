@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 
+@SuppressWarnings("serial")
 public class ServerConnectionException extends Exception {
 
 	public ServerConnectionException(MalformedURLException mue) {

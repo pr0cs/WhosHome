@@ -16,7 +16,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -39,8 +38,6 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
@@ -293,6 +290,8 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 				case ENABLED:
 					startButton.setText("Start");
 					appStatus = StateUtil.APP_STATUS.DISABLED;
+					break;
+				case SHUTDOWN:
 					break;
 				}
 				// start thread

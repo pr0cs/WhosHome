@@ -50,13 +50,15 @@ public class ClientListTableModel extends AbstractTableModel {
 		Gson restoreState = new Gson();
 		//reader.beginObject();
 		String name = reader.nextName();
-		Type listType = new TypeToken<List<Client>>(){}.getType();
-		clients = restoreState.fromJson(reader.nextString(), listType);
-		for(Client client:clients){
-			// force all to be unknown after session restore
-			client.setState(State.UNKNOWN);
+		if(name.equals("clients")){
+			Type listType = new TypeToken<List<Client>>(){}.getType();
+			clients = restoreState.fromJson(reader.nextString(), listType);
+			for(Client client:clients){
+				// force all to be unknown after session restore
+				client.setState(State.UNKNOWN);
+			}
+			fireTableDataChanged();
 		}
-		fireTableDataChanged();
 	}
 	/*
 	public int getIncludedColIndex(JTable camTable){
@@ -123,6 +125,7 @@ public class ClientListTableModel extends AbstractTableModel {
 		}
 		return "UNKNOWN";
 	}
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public Class getColumnClass(int c){
 		if(c<2){

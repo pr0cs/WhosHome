@@ -1,8 +1,5 @@
 package net.pixelsystems;
 
-import net.pixelsystems.server.ServerConnectionException;
-import net.pixelsystems.server.ServerConnector;
-
 public class WhosHomeApp {
 	
 	/**

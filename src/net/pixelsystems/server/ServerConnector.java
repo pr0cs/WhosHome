@@ -13,7 +13,7 @@ import com.google.gson.stream.JsonReader;
 import net.pixelsystems.thread.ServerFeedbackEvent;
 import net.pixelsystems.thread.ServerFeedbackEvent.ServerEventType;
 import net.pixelsystems.thread.ThreadFeedback;
-
+@SuppressWarnings("unused")
 public class ServerConnector{
 
 	//////////////   NETCAM CONNECTOR CLASSES
@@ -130,6 +130,7 @@ public class ServerConnector{
 	
 	public void getCameras(){
 		Thread serverThread = new Thread(){
+			@SuppressWarnings("unchecked")
 			@Override
 			public void run(){
 				try{
