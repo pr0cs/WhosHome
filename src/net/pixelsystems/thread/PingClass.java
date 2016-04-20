@@ -28,7 +28,7 @@ public class PingClass extends TimerTask{
 		feedback.feedbackEvent(new ClientFeedbackEvent("Check for connection..."));
 
 		boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");		
-	    ProcessBuilder processBuilder = new ProcessBuilder("ping", isWindows? "-n" : "-c", "1", ip);
+	    ProcessBuilder processBuilder = new ProcessBuilder("ping", isWindows? "-n" : "-c", "1","-w","5", ip);
 	    Process proc;
 		try {
 			proc = processBuilder.start();

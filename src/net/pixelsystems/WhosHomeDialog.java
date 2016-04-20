@@ -348,6 +348,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 			}
 			ticker.cancel();
 			tickerTimer.purge();
+			clients.clear();
 		}
 	}
 	
