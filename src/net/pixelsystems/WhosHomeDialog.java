@@ -463,6 +463,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 		JsonWriter writer = new JsonWriter(new OutputStreamWriter(fout,"UTF-8"));
 		writer.beginObject();
 		clientTableModel.saveState(writer);
+		camTableModel.saveState(writer);
 		writer.name("timeBeforeCheck").value(timeBeforeCheck.getText());
 		writer.name("ncsServerIP").value(ncsServerIP.getText());
 		writer.name("ncsServerPassword").value(new String(ncsServerPassword.getPassword()));
@@ -480,6 +481,7 @@ public class WhosHomeDialog extends JDialog implements ActionListener,WhosHomeTh
 			reader = new JsonReader(new InputStreamReader(fin,"UTF-8"));
 			reader.beginObject();
 			clientTableModel.restoreState(reader);
+			camTableModel.restoreState(reader);
 			while (reader.hasNext()) {
 				String name = reader.nextName();
 				if(name.equals("timeBeforeCheck")){

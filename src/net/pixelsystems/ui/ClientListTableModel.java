@@ -60,21 +60,6 @@ public class ClientListTableModel extends AbstractTableModel {
 			fireTableDataChanged();
 		}
 	}
-	/*
-	public int getIncludedColIndex(JTable camTable){
-		return camTable.getColumn(IS_INCLUDED).getModelIndex();
-	}
-	public int getNameColIndex(JTable camTable){
-		return camTable.getColumn(NAME_COLUMN).getModelIndex();
-	}
-	public int getMotionColIndex(JTable camTable){
-		return camTable.getColumn(IS_MOTION_DETECT).getModelIndex();
-	}
-	public void updateMotionStateForRow(JTable camTable, int row, boolean state){
-		int col = getMotionColIndex(camTable);
-		this.setValueAt(state, row, col);
-	}
-	*/
 	@Override
 	public void setValueAt(Object value,int row, int col){
 		Client client = clients.get(row);
